@@ -1,47 +1,39 @@
-import sqlite3
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.orm import DeclarativeBase, Session
+from datetime import datetime
 
-def get_connection():
-    conn = sqlite3.connect("worklog.db")
-    conn.row_factory = sqlite3.Row
-    return conn
+# データベースの接続先
+engine = create_engine("sqlite:///worklog.db")
 
+# モデルの基底クラス
+class Base(DeclarativeBase):
+    pass
+
+# 作業ログのモデル（テーブルの定義）
+class WorkLog(Base):
+    __tablename__ = "worklogs_v2"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String, nullable=False)
+    duration = Column(Integer, nullable=False)
+    created_at = Column(String, default=lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+# テーブルを作成
 def init_db():
-    conn = get_connection()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS worklogs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            duration INTEGER NOT NULL,
-            created_at TEXT DEFAULT (datetime('now', 'localtime'))
-        )
-    """)
-    conn.commit()
-    conn.close()
+    Base.metadata.create_all(engine)
 
-# ログを1件保存する
+# ログを保存
 def insert_worklog(title: str, duration: int):
-    conn = get_connection()
-    conn.execute(
-        "INSERT INTO worklogs (title, duration) VALUES (?, ?)",
-        (title, duration)
-    )
-    conn.commit()
-    conn.close()
+    with Session(engine) as session:
+        log = WorkLog(title=title, duration=duration)
+        session.add(log)
+        session.commit()
 
-# ログを全件取得する
+# ログを全件取得
 def get_all_worklogs():
-    conn = get_connection()
-    rows = conn.execute("SELECT * FROM worklogs ORDER BY created_at DESC").fetchall()
-    conn.close()
-    return [dict(row) for row in rows]
-
-if __name__ == "__main__":
-    init_db()
-
-    # テストデータを入れてみる
-    insert_worklog("FastAPI学習", 60)
-    insert_worklog("SQLite入門", 45)
-
-    logs = get_all_worklogs()
-    for log in logs:
-        print(log)
+    with Session(engine) as session:
+        logs = session.query(WorkLog).order_by(WorkLog.id.desc()).all()
+        return [
+            {"id": l.id, "title": l.title, "duration": l.duration, "created_at": l.created_at}
+            for l in logs
+        ]
