@@ -3,7 +3,7 @@ from sqlalchemy.orm import DeclarativeBase, Session
 from datetime import datetime
 
 # データベースの接続先
-engine = create_engine("sqlite:///worklog.db")
+engine = create_engine("postgresql://postgres:YOKO23ryo@localhost:5432/worklog_db")
 
 # モデルの基底クラス
 class Base(DeclarativeBase):
